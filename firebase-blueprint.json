@@ -1,0 +1,117 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A champion participating in the reading competition.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "totalPoints": { "type": "number" },
+        "rank": { "type": "number" },
+        "titles": { "type": "array", "items": { "type": "string" } },
+        "tomesConquered": { "type": "number" },
+        "role": { "type": "string", "enum": ["champion", "archivist"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "bio": { "type": "string" },
+        "favoriteGenres": { "type": "array", "items": { "type": "string" } },
+        "profileBannerUrl": { "type": "string" },
+        "monthlyGoal": { "type": "number" },
+        "badges": { "type": "array", "items": { "type": "string" } },
+        "trophies": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["userId", "displayName", "email", "totalPoints", "role"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "A book log submitted by a champion.",
+      "type": "object",
+      "properties": {
+        "submissionId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "bookTitle": { "type": "string" },
+        "author": { "type": "string" },
+        "category": { "type": "string", "enum": ["novel", "poetry", "non-fiction"] },
+        "synopsis": { "type": "string" },
+        "assessment": { "type": "string" },
+        "rating": { "type": "number" },
+        "coverImageUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "pointsEarned": { "type": "number" },
+        "impactScore": { "type": "number" },
+        "judgeNotes": { "type": "string" },
+        "pagesRead": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookTitle", "category", "synopsis", "assessment", "rating", "status"]
+    },
+    "LeagueRules": {
+      "title": "League Rules",
+      "description": "The sacred rules of the grand tournament.",
+      "type": "object",
+      "properties": {
+        "content": { "type": "string" },
+        "lastUpdated": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["content", "lastUpdated"]
+    },
+    "GlobalStats": {
+      "title": "Global Stats",
+      "description": "Aggregated statistics for the arena.",
+      "type": "object",
+      "properties": {
+        "activeChampions": { "type": "number" },
+        "tomesConquered": { "type": "number" },
+        "pendingAdjudications": { "type": "number" }
+      },
+      "required": ["activeChampions", "tomesConquered", "pendingAdjudications"]
+    },
+    "RuleAudit": {
+      "title": "Rule Audit",
+      "description": "Historical record of rule changes.",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "archivistName": { "type": "string" },
+        "archivistId": { "type": "string" },
+        "contentBefore": { "type": "string" },
+        "contentAfter": { "type": "string" },
+        "diff": {
+          "type": "object",
+          "properties": {
+            "added": { "type": "array", "items": { "type": "string" } },
+            "removed": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "configPath": { "type": "string" }
+      },
+      "required": ["timestamp", "archivistName", "configPath"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Champion profiles."
+    },
+    "/submissions/{submissionId}": {
+      "schema": "Submission",
+      "description": "Book log submissions."
+    },
+    "/config/league_rules": {
+      "schema": "LeagueRules",
+      "description": "The current league rules."
+    },
+    "/stats/global": {
+      "schema": "GlobalStats",
+      "description": "Live arena statistics."
+    },
+    "/rules_audit/{auditId}": {
+      "schema": "RuleAudit",
+      "description": "Trail of manifest changes."
+    }
+  }
+}

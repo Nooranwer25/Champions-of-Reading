@@ -1,0 +1,6 @@
+{
+  "name": "Obsidian Archive: Champions of Reading",
+  "description": "An immersive, gamified book-reading tracking platform inspired by dark fantasy aesthetics. Users log reading progress, visualised in a 30-day temporal matrix timeline, take on daily culling trials, earn exclusive badges and rank grades, climb competitive leaderboards, and consult Kogane, a Gemini-powered AI companion for personalized recommendations and summaries.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

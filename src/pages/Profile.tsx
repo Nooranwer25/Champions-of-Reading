@@ -13,6 +13,7 @@ import remarkGfm from 'remark-gfm';
 import { BADGES, getBadgeIcon } from '../constants/badges';
 import { getTechniqueSummary } from '../services/koganeService';
 import { getGlobalRank } from '../services/rankingService';
+import { useToast } from '../services/ToastContext';
 import { ProgressDashboard } from '../components/ProgressDashboard';
 import { ReadingGoals } from '../components/ReadingGoals';
 import { CursedEnergyParticles } from '../components/CursedEnergyParticles';
@@ -22,6 +23,11 @@ import { AnimatedFlame } from '../components/AnimatedFlame';
 import { ReadingHistoryChart } from '../components/ReadingHistoryChart';
 import { ReadingTimeline } from '../components/ReadingTimeline';
 import { TrophyTracker } from '../components/TrophyTracker';
+import { AscensionLog } from '../components/AscensionLog';
+import { FramerParticleExplosion } from '../components/FramerParticleExplosion';
+import { RankAdvancementModal } from '../components/RankAdvancementModal';
+import { ReadingVelocityGauge } from '../components/ReadingVelocityGauge';
+import { LoreFragments } from '../components/LoreFragments';
 
 const AnimatedNumber = ({ value }: { value: number }) => {
   const spring = useSpring(0, { stiffness: 50, damping: 20 });
@@ -62,10 +68,138 @@ const DomainBackground = () => {
   );
 };
 
+const getPointsGrade = (points: number) => {
+  if (points >= 1200) return 'Special Grade';
+  if (points >= 750) return 'Grade 1';
+  if (points >= 400) return 'Grade 2';
+  if (points >= 150) return 'Grade 3';
+  return 'Grade 4';
+};
+
+export interface SovereignBadge {
+  id: string;
+  title: string;
+  subtitle: string;
+  milestone: number;
+  description: string;
+  badgeColor: string;
+  textColor: string;
+  badgeIcon: React.ComponentType<{ size?: number; className?: string }>;
+}
+
+export const SOVEREIGN_BADGES: SovereignBadge[] = [
+  {
+    id: 'novice',
+    title: 'Initiate of the Seals',
+    subtitle: 'Novice Tier',
+    milestone: 0,
+    description: 'A novice seeker admitted to the entrance of the Obsidian Library. The seals have accepted your life force.',
+    badgeColor: 'bg-neutral-900/40 text-neutral-400 border-neutral-800',
+    textColor: 'text-neutral-400',
+    badgeIcon: Shield,
+  },
+  {
+    id: 'scholar',
+    title: 'Scholar of Forgotten Tomes',
+    subtitle: 'Scholar Tier',
+    milestone: 2,
+    description: 'An advanced scholar who has unearthed the sacred knowledge of at least 2 books. You can hear the ancient authors whispering.',
+    badgeColor: 'bg-amber-950/30 text-amber-500 border-amber-600/30',
+    textColor: 'text-amber-500',
+    badgeIcon: BookOpen,
+  },
+  {
+    id: 'archivist',
+    title: 'Eldritch Archivist',
+    subtitle: 'Archivist Tier',
+    milestone: 5,
+    description: 'A sanctified keeper of the library. You have transcribed 5 or more volumes. Your mind absorbs cosmic energy with ease.',
+    badgeColor: 'bg-cyan-950/30 text-cyan-400 border-cyan-500/30',
+    textColor: 'text-cyan-400',
+    badgeIcon: Award,
+  },
+  {
+    id: 'grandmaster',
+    title: 'Grandmaster of Obsidian Library',
+    subtitle: 'Grandmaster Tier',
+    milestone: 10,
+    description: 'The absolute ruler of cognitive transcriptions with 10+ books. Your soul is permanently fused with the ancient repository.',
+    badgeColor: 'bg-rose-950/30 text-rose-500 border-rose-500/30',
+    textColor: 'text-rose-500',
+    badgeIcon: Sparkles,
+  },
+];
+
+export const getFrameStyles = (badgeId: string) => {
+  switch (badgeId) {
+    case 'novice':
+      return {
+        container: "border-4 border-neutral-600/80 bg-neutral-900 shadow-[0_0_10px_rgba(255,255,255,0.05)]",
+        badgeLabel: "bg-neutral-600 text-white",
+        avatarClass: "grayscale hover:grayscale-0",
+        overlay: <div className="absolute inset-0 border border-white/5 pointer-events-none" />
+      };
+    case 'scholar':
+      return {
+        container: "border-4 border-amber-600/80 bg-neutral-900 shadow-[0_0_25px_rgba(245,158,11,0.35)] ring-2 ring-amber-500/20",
+        badgeLabel: "bg-amber-600 text-black font-black",
+        avatarClass: "contrast-105",
+        overlay: (
+          <>
+            <div className="absolute inset-0 border-2 border-amber-500/30 pointer-events-none animate-pulse" />
+            <div className="absolute -top-2 -left-2 w-4 h-4 border-t-2 border-l-2 border-amber-400" />
+            <div className="absolute -bottom-2 -right-2 w-4 h-4 border-b-2 border-r-2 border-amber-400" />
+          </>
+        )
+      };
+    case 'archivist':
+      return {
+        container: "border-[6px] border-cyan-500/90 bg-neutral-950 shadow-[0_0_35px_rgba(6,182,212,0.5)] ring-4 ring-cyan-500/10",
+        badgeLabel: "bg-cyan-500 text-black font-black animate-pulse",
+        avatarClass: "saturate-110",
+        overlay: (
+          <>
+            <div className="absolute inset-0 border border-cyan-300/30 pointer-events-none" />
+            <div className="absolute -inset-1 border border-cyan-400/20 animate-[spin_8s_linear_infinite] pointer-events-none" />
+            <div className="absolute -top-2 -right-2 w-5 h-5 border-t-2 border-r-2 border-cyan-400" />
+            <div className="absolute -bottom-2 -left-2 w-5 h-5 border-b-2 border-l-2 border-cyan-400" />
+          </>
+        )
+      };
+    case 'grandmaster':
+      return {
+        container: "border-[8px] border-rose-600 bg-neutral-950 shadow-[0_0_50px_rgba(239,68,68,0.7),_inset_0_0_20px_rgba(239,68,68,0.4)] ring-8 ring-rose-500/10 relative",
+        badgeLabel: "bg-gradient-to-r from-rose-600 to-amber-500 text-white font-black uppercase tracking-[0.1em] shadow-[0_0_15px_#f43f5e]",
+        avatarClass: "saturate-125 contrast-110",
+        overlay: (
+          <>
+            <div className="absolute -inset-2 border-2 border-rose-500/40 rounded-none animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite] pointer-events-none" />
+            <div className="absolute -inset-3 border border-amber-500/30 rounded-none animate-[spin_12s_linear_infinite] pointer-events-none" />
+            <div className="absolute -top-3 -left-3 text-[10px] text-rose-500 font-serif font-black select-none pointer-events-none animate-pulse">☠</div>
+            <div className="absolute -top-3 -right-3 text-[10px] text-rose-500 font-serif font-black select-none pointer-events-none animate-pulse">☠</div>
+            <div className="absolute -bottom-3 -left-3 text-[10px] text-rose-500 font-serif font-black select-none pointer-events-none animate-pulse">☠</div>
+            <div className="absolute -bottom-3 -right-3 text-[10px] text-rose-500 font-serif font-black select-none pointer-events-none animate-pulse">☠</div>
+          </>
+        )
+      };
+    default:
+      return {
+        container: "border-4 border-primary/20 bg-surface shadow-2xl relative cursed-energy-aura",
+        badgeLabel: "bg-primary text-black",
+        avatarClass: "",
+        overlay: null
+      };
+  }
+};
+
 const Profile: React.FC = () => {
   const { user, profile } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const { showToast } = useToast();
+
+  const [activeSovereignBadgeId, setActiveSovereignBadgeId] = useState<string>('novice');
+
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [hoveredSubmission, setHoveredSubmission] = useState<Submission | null>(null);
@@ -77,8 +211,14 @@ const Profile: React.FC = () => {
   const [globalRank, setGlobalRank] = useState<number | null>(null);
   const [copiedBadgeId, setCopiedBadgeId] = useState<string | null>(null);
   const [copiedSummary, setCopiedSummary] = useState(false);
+  const [copiedAchievements, setCopiedAchievements] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [newlyUnlockedBadge, setNewlyUnlockedBadge] = useState<typeof BADGES[number] | null>(null);
+  const [showExplosion, setShowExplosion] = useState(false);
+  const [explosionType, setExplosionType] = useState<'badge' | 'rank' | 'both'>('badge');
+  const [prevPoints, setPrevPoints] = useState<number | null>(null);
+  const [prevRank, setPrevRank] = useState<number | null>(null);
+  const [levelUpData, setLevelUpData] = useState<{ oldGrade: string; newGrade: string } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     displayName: '',
@@ -92,6 +232,38 @@ const Profile: React.FC = () => {
     'Mystery', 'Philosophy', 'Science Fiction', 'Classic Literature', 
     'Historical Fiction', 'Grimdark', 'Utopian'
   ];
+
+  // Sync active sovereign badge with local storage and auto-unlock on first load
+  useEffect(() => {
+    if (user?.uid) {
+      const saved = localStorage.getItem(`active_sovereign_badge_${user.uid}`);
+      if (saved) {
+        setActiveSovereignBadgeId(saved);
+      } else if (submissions.length > 0) {
+        const approvedCount = submissions.filter(s => s.status === SubmissionStatus.APPROVED).length;
+        const unlocked = [...SOVEREIGN_BADGES]
+          .reverse()
+          .find(badge => approvedCount >= badge.milestone);
+        if (unlocked) {
+          setActiveSovereignBadgeId(unlocked.id);
+          localStorage.setItem(`active_sovereign_badge_${user.uid}`, unlocked.id);
+        }
+      }
+    }
+  }, [user, submissions]);
+
+  const selectSovereignBadge = (id: string) => {
+    setActiveSovereignBadgeId(id);
+    if (user?.uid) {
+      localStorage.setItem(`active_sovereign_badge_${user.uid}`, id);
+      const selectedBadge = SOVEREIGN_BADGES.find(b => b.id === id);
+      showToast({
+        title: '👑 CREST EQUIPPED',
+        description: `Bound to "${selectedBadge?.title}".`,
+        type: 'success'
+      });
+    }
+  };
 
   useEffect(() => {
     if (profile) {
@@ -301,11 +473,30 @@ const Profile: React.FC = () => {
     const fetchRank = async () => {
       if (profile) {
         const rank = await getGlobalRank(profile.totalPoints);
+        
+        // Track rank improvement
+        if (prevRank !== null && rank < prevRank) {
+          setExplosionType('rank');
+          setShowExplosion(true);
+        }
+        setPrevRank(rank);
         setGlobalRank(rank);
+
+        // Track point-based Grade upgrades
+        if (prevPoints !== null && profile.totalPoints > prevPoints) {
+          const oldGrade = getPointsGrade(prevPoints);
+          const newGrade = getPointsGrade(profile.totalPoints);
+          if (oldGrade !== newGrade) {
+            setExplosionType('rank');
+            setShowExplosion(true);
+            setLevelUpData({ oldGrade, newGrade });
+          }
+        }
+        setPrevPoints(profile.totalPoints);
       }
     };
     fetchRank();
-  }, [profile?.totalPoints]);
+  }, [profile?.totalPoints, prevRank, prevPoints]);
 
   useEffect(() => {
     if (!profile || !profile.userId) return;
@@ -333,6 +524,8 @@ const Profile: React.FC = () => {
         if (badge) {
           setNewlyUnlockedBadge(badge);
           setShowConfetti(true);
+          setExplosionType('badge');
+          setShowExplosion(true);
         }
         // Update seen list
         const updatedSeen = [...new Set([...seenBadges, ...currentBadges])];
@@ -443,6 +636,95 @@ Join the sorting & conquering of cursed tomes at Cursed Academy!
     });
   };
 
+  const shareLatestAccomplishments = () => {
+    if (!profile) return;
+    
+    const userName = profile.displayName || 'An anonymous sorcerer';
+    const totalPages = submissions
+      .filter(s => s.status === SubmissionStatus.APPROVED)
+      .reduce((acc, s) => acc + (s.pagesRead || 0), 0);
+
+    // Get latest submission
+    const sortedSubs = [...submissions].sort((a, b) => {
+      const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt).getTime();
+      const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+    const latestSub = sortedSubs[0];
+
+    // Find latest earned badge
+    const latestBadgeId = profile.badges && profile.badges.length > 0 ? profile.badges[profile.badges.length - 1] : null;
+    const latestBadgeObj = BADGES.find(b => b.id === latestBadgeId);
+
+    // Calculate today's completed trials (last 24 hours)
+    const cutoffTime = Date.now() - 24 * 60 * 60 * 1000;
+    const last24hSubs = submissions.filter(sub => {
+      let createdTime = 0;
+      if (sub.createdAt) {
+        if (typeof sub.createdAt.toMillis === 'function') {
+          createdTime = sub.createdAt.toMillis();
+        } else if (sub.createdAt.seconds) {
+          createdTime = sub.createdAt.seconds * 1000;
+        } else {
+          createdTime = new Date(sub.createdAt).getTime();
+        }
+      }
+      return createdTime >= cutoffTime;
+    });
+    const pagesLast24h = last24hSubs.reduce((sum, s) => sum + (Number(s.pagesRead) || 0), 0);
+    const pointsLast24h = last24hSubs.reduce((sum, s) => sum + (Number(s.pointsEarned) || 0), 0);
+    
+    const completedTrials: string[] = [];
+    if (pagesLast24h >= 50) completedTrials.push('🔴 Domain Slasher (50+ Pages)');
+    if (last24hSubs.length >= 1) completedTrials.push('🟡 Tome Exorcist (Logged Sub)');
+    if (pointsLast24h >= 100) completedTrials.push('🟠 Apex Aura Focus (100+ Points)');
+
+    const text = `============================================================
+          🔮 CURSED ACADEMY: READING ACCOMPLISHMENTS 🔮           
+============================================================
+
+Sorcerer:       ${userName} (${profile.role || 'Grade 4 Sorcerer'})
+Academy Rank:   ${globalRank ? `#${globalRank}` : 'Grade 4'}
+Daily Streak:   🔥 ${profile.dailyStreak || 0} Days Active
+
+-------------------- STATISTICAL RECORD --------------------
+
+Total Aura:     ✨ ${profile.totalPoints || 0} Cursed Energy Points
+Tomes Sealed:   📖 ${profile.tomesConquered || 0} books completed
+Pages Conquered:📄 ${totalPages.toLocaleString()} pages devoured
+
+--------------------- LATEST CHRONICLE ---------------------
+${latestSub ? `
+Book Conquered: 📕 "${latestSub.bookTitle}" by ${latestSub.author}
+Extraction:     ⚡ +${latestSub.pointsEarned} PTS | ${latestSub.pagesRead} pages
+Rating:         ⭐ ${latestSub.rating}/10
+` : `
+No recent chronicles recorded. Readying future voyages.
+`}
+--------------------- UNLOCKED SEAL ------------------------
+${latestBadgeObj ? `
+Latest Seal:    🔮 ${latestBadgeObj.name}
+Description:    "${latestBadgeObj.description}"
+` : `
+No specialized seals activated yet. Keep reading to unlock.
+`}
+------------------- 24-HOUR CULLING TRIALS -----------------
+${completedTrials.length > 0 ? completedTrials.map(t => `[COMPLETED] ${t}`).join('\n') : 'No trials completed today. The vortex awaits your gaze.'}
+
+============================================================
+      Recorded & Sealed in the Chronicles of Cursed Academy.
+============================================================`;
+
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedAchievements(true);
+      setTimeout(() => {
+        setCopiedAchievements(false);
+      }, 3000);
+    }).catch((err) => {
+      console.error(err);
+    });
+  };
+
   const shareScholarlyFeatsSummary = () => {
     if (!profile) return;
     
@@ -487,6 +769,9 @@ ${achievementsList}
       // Ignore
     });
   };
+
+  const approvedCount = submissions.filter(s => s.status === SubmissionStatus.APPROVED).length;
+  const activeSovereignBadge = SOVEREIGN_BADGES.find(b => b.id === activeSovereignBadgeId);
 
   const totalPagesRead = submissions
     .filter(s => s.status === SubmissionStatus.APPROVED)
@@ -581,6 +866,18 @@ ${achievementsList}
             
             <div className="absolute bottom-10 right-10 flex flex-wrap gap-3 z-20 justify-end">
               <button 
+                onClick={shareLatestAccomplishments}
+                className={`flex items-center gap-2 bg-black/60 backdrop-blur-md border px-4 py-2 text-[10px] uppercase font-black tracking-widest transition-all cursor-pointer ${
+                  copiedAchievements 
+                    ? 'border-emerald-500/50 text-emerald-400' 
+                    : 'border-primary/20 text-primary/60 hover:text-primary hover:border-primary/40'
+                }`}
+                style={{ clipPath: 'polygon(10% 0, 100% 0, 90% 100%, 0% 100%)' }}
+              >
+                <Share2 size={14} className={copiedAchievements ? "animate-bounce" : ""} />
+                {copiedAchievements ? 'COPIED!' : 'Share Achievements'}
+              </button>
+              <button 
                 onClick={downloadSummaryReport}
                 className="flex items-center gap-2 bg-black/60 backdrop-blur-md border border-primary/20 px-4 py-2 text-[10px] uppercase font-black tracking-widest text-primary/60 hover:text-primary hover:border-primary/40 transition-all cursor-pointer"
                 style={{ clipPath: 'polygon(10% 0, 100% 0, 90% 100%, 0% 100%)' }}
@@ -602,20 +899,28 @@ ${achievementsList}
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="w-40 h-40 rounded-none border-4 border-primary/20 bg-surface overflow-hidden shadow-2xl relative cursed-energy-aura"
+                className={`w-40 h-40 rounded-none overflow-hidden relative transition-all duration-500 ${getFrameStyles(activeSovereignBadgeId).container}`}
               >
                 <img 
                   src={profile?.photoURL || user?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.uid}`} 
                   alt={profile?.displayName}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  className={`w-full h-full object-cover group-hover:scale-110 transition-all duration-500 ${getFrameStyles(activeSovereignBadgeId).avatarClass}`}
                 />
+                {getFrameStyles(activeSovereignBadgeId).overlay}
               </motion.div>
-              <div className="absolute -bottom-4 right-1/2 translate-x-1/2 md:translate-x-0 md:-right-4 bg-primary text-black px-6 py-2 rounded-none text-[10px] uppercase font-black tracking-widest shadow-xl italic" style={{ clipPath: 'polygon(10% 0, 100% 0, 90% 100%, 0% 100%)' }}>
+              <div className={`absolute -bottom-4 right-1/2 translate-x-1/2 md:translate-x-0 md:-right-4 px-6 py-2 rounded-none text-[10px] uppercase font-black tracking-widest shadow-xl italic transition-all duration-500 ${getFrameStyles(activeSovereignBadgeId).badgeLabel}`} style={{ clipPath: 'polygon(10% 0, 100% 0, 90% 100%, 0% 100%)' }}>
                 {profile?.role || 'GRADE 4 SORCERER'}
               </div>
             </div>
             
             <div className="text-center md:text-left flex-grow">
+              {activeSovereignBadge && (
+                <div className="flex justify-center md:justify-start mb-2">
+                  <span className={`px-3 py-1 bg-black/60 border text-[9px] font-mono uppercase tracking-[0.2em] font-black italic rounded-md flex items-center gap-1.5 ${activeSovereignBadge.textColor} border-current/20`}>
+                    👑 SOVEREIGN: {activeSovereignBadge.title}
+                  </span>
+                </div>
+              )}
               <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
                 <motion.h2 
                   initial={{ opacity: 0, y: 10 }}
@@ -682,11 +987,118 @@ ${achievementsList}
         {/* Progress Dashboard */}
         <ProgressDashboard submissions={submissions} />
 
+        {/* Reading Velocity Gauge */}
+        <ReadingVelocityGauge submissions={submissions} />
+
+        {/* Ascension Log (6-Month Rank Progress Chart) */}
+        <AscensionLog submissions={submissions} />
+
         {/* Genre Distribution Doughnut Chart */}
         <GenreDistribution submissions={submissions} />
 
         {/* Territory Trophies Tracker */}
         <TrophyTracker submissions={submissions} />
+
+        {/* Sovereign Badges & Visual Frames */}
+        <section className="mb-24">
+          <header className="mb-12 border-b border-primary/20 pb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div>
+              <h3 className="text-4xl font-esports italic text-on-surface uppercase tracking-tighter digital-glow">Sovereign Badges</h3>
+              <span className="text-[10px] uppercase font-esports tracking-[0.3em] text-primary/40 font-black italic block mt-1">
+                Unlock exclusive profile frames and ancient titles based on total books transcribed
+              </span>
+            </div>
+            <div className="flex items-center gap-3 bg-neutral-900/50 border border-neutral-800 px-4 py-2 font-mono text-xs uppercase tracking-widest text-neutral-400">
+              <span>Books Transcribed:</span>
+              <span className="text-[#ea580c] font-black">{approvedCount}</span>
+            </div>
+          </header>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {SOVEREIGN_BADGES.map((badge) => {
+              const isUnlocked = approvedCount >= badge.milestone;
+              const isEquipped = activeSovereignBadgeId === badge.id;
+              const Icon = badge.badgeIcon;
+              
+              return (
+                <div 
+                  key={badge.id}
+                  className={`relative p-6 border transition-all duration-300 flex flex-col justify-between min-h-[300px] bg-black/40 group ${
+                    isUnlocked 
+                      ? 'border-neutral-800 hover:border-[#ea580c]/50 hover:shadow-[0_0_30px_rgba(234,88,12,0.15)] shadow-[0_0_15px_rgba(0,0,0,0.5)]' 
+                      : 'border-white/5 opacity-40'
+                  }`}
+                  style={{ clipPath: 'polygon(10% 0, 100% 0, 90% 100%, 0% 100%)' }}
+                >
+                  {/* Decorative Milestone Badge in corner */}
+                  <div className="absolute top-0 right-0 w-10 h-10 flex items-center justify-center font-mono text-[10px] text-white/10 group-hover:text-[#ea580c]/20 font-black tracking-tighter transition-all">
+                    {badge.milestone}B
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 flex items-center justify-center border transition-all duration-300 ${
+                        isUnlocked 
+                          ? `${badge.badgeColor} border-current/20 shadow-[0_0_15px_rgba(0,0,0,0.3)]` 
+                          : 'bg-white/5 border-white/10 text-white/20'
+                      }`}>
+                        <Icon size={20} className={isUnlocked ? "animate-pulse" : ""} />
+                      </div>
+                      <div>
+                        <h4 className={`text-sm font-esports italic uppercase transition-all duration-300 ${
+                          isUnlocked ? 'text-white group-hover:text-[#ea580c]' : 'text-neutral-500'
+                        }`}>
+                          {badge.title}
+                        </h4>
+                        <span className="text-[9px] font-mono uppercase tracking-widest text-neutral-500 block">
+                          {badge.subtitle}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-neutral-400 leading-relaxed font-mono italic">
+                      {badge.description}
+                    </p>
+
+                    <div className="text-[10px] uppercase tracking-wider font-mono">
+                      {isUnlocked ? (
+                        <span className="text-emerald-500 font-bold flex items-center gap-1">
+                          ✓ UNLOCKED
+                        </span>
+                      ) : (
+                        <span className="text-neutral-500 flex items-center gap-1">
+                          🔒 REQUIRES {badge.milestone} BOOKS ({approvedCount}/{badge.milestone})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t border-white/5 mt-6">
+                    {isEquipped ? (
+                      <div className="w-full text-center py-2.5 bg-[#ea580c] text-black font-esports font-black text-[10px] uppercase tracking-widest italic shadow-[0_0_15px_rgba(234,88,12,0.3)]">
+                        ACTIVE CREST
+                      </div>
+                    ) : isUnlocked ? (
+                      <button
+                        onClick={() => selectSovereignBadge(badge.id)}
+                        className="w-full text-center py-2.5 border border-[#ea580c]/30 hover:bg-[#ea580c] hover:text-black text-[#ea580c] font-esports font-black text-[10px] uppercase tracking-widest italic transition-all cursor-pointer"
+                      >
+                        EQUIP CREST
+                      </button>
+                    ) : (
+                      <div className="w-full text-center py-2.5 border border-white/5 text-white/20 font-mono text-[9px] uppercase tracking-widest italic">
+                        LOCKED
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Lore Fragments (Collectible narrative snippets) */}
+        <LoreFragments submissions={submissions} />
 
         {/* Scholarly Feats (Achievements) */}
         <section className="mb-24">
@@ -1522,6 +1934,17 @@ ${achievementsList}
 
       {/* Confetti Animation Layer */}
       <CursedConfetti active={showConfetti} onComplete={() => setShowConfetti(false)} />
+
+      {/* Framer Motion Particle Explosion */}
+      <FramerParticleExplosion active={showExplosion} type={explosionType} onComplete={() => setShowExplosion(false)} />
+
+      {/* Rank Ascension Cinematic Modal */}
+      <RankAdvancementModal
+        isOpen={!!levelUpData}
+        oldGrade={levelUpData?.oldGrade || 'Grade 4'}
+        newGrade={levelUpData?.newGrade || 'Grade 4'}
+        onClose={() => setLevelUpData(null)}
+      />
 
       {/* Achievement Celebration Modal */}
       <AnimatePresence>

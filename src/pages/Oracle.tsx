@@ -4,7 +4,7 @@ import { db, handleFirestoreError } from '../services/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, increment, arrayUnion, getDoc, writeBatch, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Submission, SubmissionStatus, UserRole, LeagueRules } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Check, X, Eye, AlertCircle, TrendingUp, Info, Book, Scroll, Settings as SettingsIcon, Save, Loader2, Play, Zap, Shield, Target, Bold, Italic, List } from 'lucide-react';
+import { Check, X, Eye, AlertCircle, TrendingUp, Info, Book, Scroll, Settings as SettingsIcon, Save, Loader2, Play, Zap, Shield, Target, Bold, Italic, List, Sparkles, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { format } from 'date-fns';
@@ -16,17 +16,111 @@ import Kogane from '../components/Kogane';
 import { checkAndAwardBadges } from '../services/badgeService';
 import { useToast } from '../services/ToastContext';
 import { useNavigate } from 'react-router-dom';
+import { getForgottenLoreSummary } from '../services/koganeService';
 
 const Oracle: React.FC = () => {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'submissions' | 'rules'>('submissions');
+  const [activeTab, setActiveTab] = useState<'submissions' | 'rules' | 'lore'>('lore');
   const [showPreview, setShowPreview] = useState(false);
   const [pendingSubmissions, setPendingSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [adjudicating, setAdjudicating] = useState<string | null>(null);
   const [submissionNotes, setSubmissionNotes] = useState<Record<string, string>>({});
+  
+  const [userSubmissions, setUserSubmissions] = useState<Submission[]>([]);
+  const [loadingUserSubmissions, setLoadingUserSubmissions] = useState(true);
+  const [exhumedLores, setExhumedLores] = useState<Record<string, string>>({});
+  const [exhumingIds, setExhumingIds] = useState<Record<string, boolean>>({});
+
+  // Sync active tab with user type on load
+  useEffect(() => {
+    if (isAdmin) {
+      setActiveTab('submissions');
+    } else {
+      setActiveTab('lore');
+    }
+  }, [isAdmin]);
+
+  // Load user's exhumed lore cache from localStorage
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const cached = localStorage.getItem(`exhumed_lore_cache_${user.uid}`);
+      if (cached) {
+        setExhumedLores(JSON.parse(cached));
+      }
+    } catch (e) {
+      console.error("Failed to parse lore cache:", e);
+    }
+  }, [user]);
+
+  // Save lore cache to localStorage
+  const saveLoreCache = (newCache: Record<string, string>) => {
+    if (!user) return;
+    localStorage.setItem(`exhumed_lore_cache_${user.uid}`, JSON.stringify(newCache));
+  };
+
+  // Load user's own submissions
+  useEffect(() => {
+    if (!user) {
+      setLoadingUserSubmissions(false);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'submissions'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: Submission[] = [];
+      snapshot.forEach((docSnap) => {
+        list.push({ submissionId: docSnap.id, ...docSnap.data() } as Submission);
+      });
+      setUserSubmissions(list);
+      setLoadingUserSubmissions(false);
+    }, (err) => {
+      console.error('Error fetching user submissions for Lore:', err);
+      setLoadingUserSubmissions(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleExhumeLore = async (submission: Submission) => {
+    if (exhumingIds[submission.submissionId]) return;
+    
+    setExhumingIds(prev => ({ ...prev, [submission.submissionId]: true }));
+    try {
+      const lore = await getForgottenLoreSummary(
+        submission.bookTitle,
+        submission.author,
+        submission.synopsis
+      );
+      
+      const newLores = { ...exhumedLores, [submission.submissionId]: lore };
+      setExhumedLores(newLores);
+      saveLoreCache(newLores);
+      
+      showToast({
+        title: '📜 LORE EXHUMED',
+        description: `Successfully deciphered the forbidden runes for "${submission.bookTitle}".`,
+        type: 'success'
+      });
+    } catch (e) {
+      console.error(e);
+      showToast({
+        title: '🔮 DECRYPTION FAILED',
+        description: 'Eldritch seals prevented complete translation.',
+        type: 'error'
+      });
+    } finally {
+      setExhumingIds(prev => ({ ...prev, [submission.submissionId]: false }));
+    }
+  };
   
   // Rules State
   const [rules, setRules] = useState<string>('');
@@ -240,27 +334,6 @@ const Oracle: React.FC = () => {
     );
   }
 
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen pt-32 flex flex-col items-center justify-center bg-surface px-6 text-center">
-        <div className="max-w-md p-8 border border-rose-500/20 bg-rose-500/5 rounded-2xl shadow-[0_0_50px_rgba(239,68,68,0.1)] flex flex-col items-center">
-          <Shield className="text-rose-500 mb-6 animate-pulse" size={48} />
-          <h2 className="text-2xl font-esports font-bold uppercase tracking-wider text-rose-500 mb-2">Barrier Rejected</h2>
-          <p className="text-xs font-mono uppercase tracking-widest text-neutral-400 mb-6">Unauthorized Sorcerer Detected</p>
-          <p className="text-sm text-neutral-300 leading-relaxed mb-8">
-            This domain is sealed and can only be accessed by appointed Archive Administrators (Archivists). Your cursed signature does not match the approved list.
-          </p>
-          <button
-            onClick={() => navigate('/')}
-            className="px-6 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white border border-neutral-800 hover:border-neutral-700 rounded-xl text-xs font-mono uppercase tracking-widest transition-all cursor-pointer"
-          >
-            Return to Arena
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen pt-32 pb-24 px-6 md:px-12 domain-expansion-bg">
       <div className="max-w-6xl mx-auto">
@@ -278,22 +351,33 @@ const Oracle: React.FC = () => {
             </motion.h2>
             
             <nav className="flex gap-12">
+              {isAdmin && (
+                <>
+                  <button 
+                    onClick={() => setActiveTab('submissions')}
+                    className={`flex items-center gap-3 pb-6 border-b-4 transition-all uppercase font-esports font-black italic tracking-widest ${activeTab === 'submissions' ? 'border-primary text-primary' : 'border-transparent text-white/20 hover:text-white/40'}`}
+                  >
+                    <Scroll size={20} />
+                    <span className="text-[12px]">Manifestations</span>
+                    {pendingSubmissions.length > 0 && (
+                      <span className="bg-primary text-black text-[10px] px-2 py-0.5 font-bold shadow-[0_0_10px_rgba(248,231,28,0.5)]">{pendingSubmissions.length}</span>
+                    )}
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('rules')}
+                    className={`flex items-center gap-3 pb-6 border-b-4 transition-all uppercase font-esports font-black italic tracking-widest ${activeTab === 'rules' ? 'border-primary text-primary' : 'border-transparent text-white/20 hover:text-white/40'}`}
+                  >
+                    <SettingsIcon size={20} />
+                    <span className="text-[12px]">Statutes</span>
+                  </button>
+                </>
+              )}
               <button 
-                onClick={() => setActiveTab('submissions')}
-                className={`flex items-center gap-3 pb-6 border-b-4 transition-all uppercase font-esports font-black italic tracking-widest ${activeTab === 'submissions' ? 'border-primary text-primary' : 'border-transparent text-white/20 hover:text-white/40'}`}
+                onClick={() => setActiveTab('lore')}
+                className={`flex items-center gap-3 pb-6 border-b-4 transition-all uppercase font-esports font-black italic tracking-widest ${activeTab === 'lore' ? 'border-primary text-primary' : 'border-transparent text-white/20 hover:text-white/40'}`}
               >
-                <Scroll size={20} />
-                <span className="text-[12px]">Manifestations</span>
-                {pendingSubmissions.length > 0 && (
-                  <span className="bg-primary text-black text-[10px] px-2 py-0.5 font-bold shadow-[0_0_10px_rgba(248,231,28,0.5)]">{pendingSubmissions.length}</span>
-                )}
-              </button>
-              <button 
-                onClick={() => setActiveTab('rules')}
-                className={`flex items-center gap-3 pb-6 border-b-4 transition-all uppercase font-esports font-black italic tracking-widest ${activeTab === 'rules' ? 'border-primary text-primary' : 'border-transparent text-white/20 hover:text-white/40'}`}
-              >
-                <SettingsIcon size={20} />
-                <span className="text-[12px]">Statutes</span>
+                <Sparkles size={20} />
+                <span className="text-[12px]">Forgotten Lore</span>
               </button>
             </nav>
           </div>
@@ -304,7 +388,7 @@ const Oracle: React.FC = () => {
 
         <div className="grid gap-12">
           <AnimatePresence mode="wait">
-            {activeTab === 'submissions' ? (
+            {activeTab === 'submissions' && (
               <motion.div
                 key="submissions"
                 initial={{ opacity: 0, y: 10 }}
@@ -435,7 +519,9 @@ const Oracle: React.FC = () => {
                   </div>
                 )}
               </motion.div>
-            ) : (
+            )}
+
+            {activeTab === 'rules' && (
               <motion.div
                 key="rules"
                 initial={{ opacity: 0, y: 10 }}
@@ -621,6 +707,189 @@ const Oracle: React.FC = () => {
                     )}
                   </div>
                 </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'lore' && (
+              <motion.div
+                key="lore"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="max-w-6xl mx-auto space-y-12 pb-16"
+              >
+                {/* Header Banner */}
+                <div className="bg-black/80 border-2 border-[#ea580c]/30 p-12 relative overflow-hidden shadow-[0_0_50px_rgba(234,88,12,0.1)]" style={{ clipPath: 'polygon(3% 0, 100% 0, 97% 100%, 0% 100%)' }}>
+                  <div className="absolute top-0 left-0 w-2 h-full bg-[#ea580c] shadow-[0_0_15px_#ea580c]" />
+                  <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                    <div className="space-y-3 max-w-2xl text-center md:text-left">
+                      <div className="flex items-center justify-center md:justify-start gap-3">
+                        <span className="px-3 py-1 bg-[#ea580c]/10 text-[#ea580c] border border-[#ea580c]/20 text-[10px] font-mono uppercase tracking-widest font-black italic animate-pulse">
+                          Forbidden Sanctum
+                        </span>
+                      </div>
+                      <h3 className="text-4xl md:text-5xl font-esports italic text-white uppercase tracking-tight">
+                        Archive of <span className="text-[#ea580c] digital-glow">Forgotten Lore</span>
+                      </h3>
+                      <p className="text-sm text-neutral-400 font-bold leading-relaxed uppercase tracking-wider italic">
+                        The Oracle transcribes your mortal reading achievements into dark, occult, and high-fantasy grimoires. Exhume the secret cursed essences of the texts you have conquered.
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-6 bg-neutral-900/50 border border-neutral-800 rounded-none w-full md:w-auto min-w-[200px]">
+                      <div className="text-4xl font-mono font-black text-[#ea580c]">{userSubmissions.length}</div>
+                      <div className="text-[10px] uppercase font-black tracking-widest text-neutral-500 mt-2 italic">GRIMOIRES CONQUERED</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lore Entries */}
+                {loadingUserSubmissions ? (
+                  <div className="py-24 text-center text-[#ea580c]/20 italic font-black font-esports text-3xl uppercase tracking-widest animate-pulse">
+                    Exhuming library manifests...
+                  </div>
+                ) : userSubmissions.length === 0 ? (
+                  <div className="p-16 text-center border-2 border-dashed border-neutral-800 bg-neutral-950/20 max-w-2xl mx-auto rounded-none relative">
+                    <div className="absolute inset-0 bg-gradient-to-b from-[#ea580c]/2 to-transparent pointer-events-none" />
+                    <Scroll className="text-neutral-600 mx-auto mb-6 animate-pulse" size={48} />
+                    <h4 className="text-2xl font-esports italic text-neutral-300 uppercase tracking-wider mb-3">No Manuscripts Found</h4>
+                    <p className="text-sm text-neutral-500 max-w-md mx-auto leading-relaxed mb-8 uppercase italic tracking-widest font-black">
+                      Your historical register is completely blank. Submit a reading report at the Arena to record your first conquest, and the Oracle will manifest its forgotten lore.
+                    </p>
+                    <button
+                      onClick={() => navigate('/submit')}
+                      className="px-8 py-4 bg-[#ea580c] hover:bg-white text-black font-esports font-black text-xs uppercase tracking-widest transition-all cursor-pointer shadow-[0_0_20px_rgba(234,88,12,0.2)]"
+                      style={{ clipPath: 'polygon(10% 0, 100% 0, 90% 100%, 0% 100%)' }}
+                    >
+                      Record First Volume
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid gap-12">
+                    {userSubmissions.map((sub, index) => {
+                      const hasLore = !!exhumedLores[sub.submissionId];
+                      const isExhuming = !!exhumingIds[sub.submissionId];
+                      const formattedDate = sub.createdAt
+                        ? format(
+                            sub.createdAt.toMillis
+                              ? sub.createdAt.toMillis()
+                              : sub.createdAt.seconds
+                              ? sub.createdAt.seconds * 1000
+                              : new Date(sub.createdAt).getTime(),
+                            'MMMM dd, yyyy'
+                          )
+                        : 'Unknown Era';
+
+                      return (
+                        <motion.div
+                          key={sub.submissionId}
+                          initial={{ opacity: 0, y: 15 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="bg-black/60 border border-neutral-800 p-8 md:p-12 relative overflow-hidden group hover:border-[#ea580c]/30 transition-all shadow-[0_0_30px_rgba(0,0,0,0.5)]"
+                          style={{ clipPath: 'polygon(1.5% 0, 100% 0, 98.5% 100%, 0% 100%)' }}
+                        >
+                          {/* Left Glow Accent */}
+                          <div className={`absolute top-0 left-0 w-1.5 h-full transition-all ${hasLore ? 'bg-[#ea580c] shadow-[0_0_10px_#ea580c]' : 'bg-neutral-800 group-hover:bg-neutral-700'}`} />
+
+                          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-10 relative z-10">
+                            <div className="space-y-4 flex-1">
+                              <div className="flex flex-wrap items-center gap-4">
+                                <span className={`px-3 py-1 text-[10px] font-mono uppercase font-black tracking-widest border ${
+                                  sub.status === SubmissionStatus.APPROVED
+                                    ? 'bg-[#ea580c]/10 text-[#ea580c] border-[#ea580c]/20'
+                                    : 'bg-neutral-900 text-neutral-500 border-neutral-800'
+                                }`}>
+                                  {sub.status === SubmissionStatus.APPROVED ? 'SANCTIFIED GRIMOIRE' : 'UNSANCTIFIED RITUAL'}
+                                </span>
+                                <span className="text-neutral-500 font-mono text-[11px] tracking-wider uppercase">
+                                  Exhumed: {formattedDate}
+                                </span>
+                              </div>
+
+                              <div className="space-y-1">
+                                <h4 className="text-3xl font-esports italic text-white uppercase tracking-tight group-hover:text-[#ea580c] transition-all">
+                                  {sub.bookTitle}
+                                </h4>
+                                <p className="text-xs font-mono uppercase tracking-widest text-neutral-400">
+                                  Mortal Scribe: <span className="text-[#ea580c] font-black">{sub.author}</span>
+                                </p>
+                              </div>
+
+                              <div className="border-t border-neutral-900 pt-6 mt-6">
+                                <div className="text-[10px] uppercase font-black tracking-widest text-neutral-500 mb-2 italic">
+                                  Mortal Synopsis & Assessment
+                                </div>
+                                <p className="text-sm text-neutral-400 leading-relaxed font-mono italic line-clamp-3 group-hover:line-clamp-none transition-all">
+                                  "{sub.synopsis || 'No synopsis registered.'}"
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="w-full lg:w-[400px] bg-neutral-950/40 border border-neutral-900 p-8 flex flex-col justify-between min-h-[220px] relative">
+                              <div className="absolute top-0 right-0 p-3 text-[10px] font-mono text-neutral-600 uppercase tracking-widest">
+                                SEAL_NO: {sub.submissionId.substring(0, 8).toUpperCase()}
+                              </div>
+                              
+                              {isExhuming ? (
+                                <div className="flex flex-col items-center justify-center flex-grow py-8 space-y-4">
+                                  <Loader2 className="animate-spin text-[#ea580c]" size={32} />
+                                  <p className="text-xs font-mono uppercase tracking-widest text-[#ea580c] font-black animate-pulse">
+                                    Chanting decryption seal...
+                                  </p>
+                                </div>
+                              ) : hasLore ? (
+                                <div className="space-y-6 flex-grow flex flex-col justify-between">
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-2 text-[#ea580c]">
+                                      <Book className="animate-pulse" size={14} />
+                                      <span className="text-[10px] uppercase font-black tracking-widest italic">
+                                        DECIPHERED ELDRITCH SCROLL
+                                      </span>
+                                    </div>
+                                    <div className="text-xs text-neutral-300 leading-relaxed font-mono prose-invert markdown-body">
+                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {exhumedLores[sub.submissionId]}
+                                      </ReactMarkdown>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex justify-end pt-4 border-t border-neutral-900">
+                                    <button
+                                      onClick={() => handleExhumeLore(sub)}
+                                      className="text-[10px] font-mono font-black uppercase tracking-widest text-neutral-500 hover:text-[#ea580c] flex items-center gap-2 transition-all cursor-pointer"
+                                    >
+                                      <RefreshCw size={12} />
+                                      Re-Chant Incantation
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center flex-grow py-8 text-center space-y-6">
+                                  <Scroll className="text-neutral-700 animate-pulse" size={32} />
+                                  <div className="space-y-1">
+                                    <p className="text-xs font-mono uppercase tracking-widest text-neutral-500 font-bold">
+                                      Lore Remains Sealed
+                                    </p>
+                                    <p className="text-[10px] text-neutral-600 uppercase italic">
+                                      Cursed essence not yet extracted
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => handleExhumeLore(sub)}
+                                    className="px-6 py-3 bg-[#ea580c]/10 hover:bg-[#ea580c] text-[#ea580c] hover:text-black border border-[#ea580c]/30 hover:border-transparent font-esports font-black text-[10px] uppercase tracking-widest transition-all cursor-pointer"
+                                    style={{ clipPath: 'polygon(10% 0, 100% 0, 90% 100%, 0% 100%)' }}
+                                  >
+                                    Exhume Forgotten Lore
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

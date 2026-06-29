@@ -4,7 +4,7 @@ import { db } from '../services/firebase';
 import { UserProfile, Submission, SubmissionStatus } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from '../services/ThemeContext';
-import { Crown, Trophy, Medal, BookOpen, Loader2 } from 'lucide-react';
+import { Crown, Trophy, Medal, BookOpen, Loader2, Sparkles, Database } from 'lucide-react';
 
 interface ArchivistRow {
   userId: string;
@@ -12,11 +12,56 @@ interface ArchivistRow {
   photoURL?: string;
   totalPagesRead: number;
   tomesConquered: number;
+  grade?: string;
 }
 
+const DUMMY_ARCHIVISTS: ArchivistRow[] = [
+  {
+    userId: 'dummy-1',
+    displayName: 'SATORU GOJO',
+    photoURL: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=150&auto=format&fit=crop&q=80',
+    totalPagesRead: 14250,
+    tomesConquered: 45,
+    grade: 'Special Grade'
+  },
+  {
+    userId: 'dummy-2',
+    displayName: 'YUTA OKKOTSU',
+    photoURL: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=150&auto=format&fit=crop&q=80',
+    totalPagesRead: 9840,
+    tomesConquered: 31,
+    grade: 'Special Grade'
+  },
+  {
+    userId: 'dummy-3',
+    displayName: 'KENTO NANAMI',
+    photoURL: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=150&auto=format&fit=crop&q=80',
+    totalPagesRead: 8150,
+    tomesConquered: 26,
+    grade: 'Grade 1'
+  },
+  {
+    userId: 'dummy-4',
+    displayName: 'MAKI ZEN\'IN',
+    photoURL: 'https://images.unsplash.com/photo-1560942485-b2a11cc13456?w=150&auto=format&fit=crop&q=80',
+    totalPagesRead: 6420,
+    tomesConquered: 20,
+    grade: 'Grade 2'
+  },
+  {
+    userId: 'dummy-5',
+    displayName: 'MEGUMI FUSHIGURO',
+    photoURL: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=150&auto=format&fit=crop&q=80',
+    totalPagesRead: 5210,
+    tomesConquered: 17,
+    grade: 'Grade 2'
+  }
+];
+
 export const TopArchivists: React.FC = () => {
-  const [archivists, setArchivists] = useState<ArchivistRow[]>([]);
+  const [liveArchivists, setLiveArchivists] = useState<ArchivistRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'demo' | 'live'>('demo');
 
   useEffect(() => {
     // We listen to both users and submissions in real-time to build a fully live leaderboard.
@@ -77,7 +122,7 @@ export const TopArchivists: React.FC = () => {
       });
 
       // 5. Select top 5
-      setArchivists(rows.slice(0, 5));
+      setLiveArchivists(rows.slice(0, 5));
       setLoading(false);
     };
 
@@ -89,7 +134,7 @@ export const TopArchivists: React.FC = () => {
       usersList = u;
       processLeaderboard();
     }, (error) => {
-      // Ignore
+      setLoading(false);
     });
 
     unsubSubs = onSnapshot(subsQuery, (snapshot) => {
@@ -100,7 +145,7 @@ export const TopArchivists: React.FC = () => {
       submissionsList = s;
       processLeaderboard();
     }, (error) => {
-      // Ignore
+      setLoading(false);
     });
 
     return () => {
@@ -138,10 +183,12 @@ export const TopArchivists: React.FC = () => {
     }
   };
 
+  const currentList = activeTab === 'demo' ? DUMMY_ARCHIVISTS : liveArchivists;
+
   return (
     <div 
       id="top-archivists-leaderboard"
-      className="w-full max-w-2xl mx-auto p-8 bg-surface-charcoal/60 backdrop-blur-md border border-primary/30 relative"
+      className="w-full max-w-2xl mx-auto p-8 bg-surface-charcoal/60 backdrop-blur-md border border-primary/30 relative text-white"
       style={{ clipPath: 'polygon(4% 0, 100% 0, 96% 100%, 0% 100%)' }}
     >
       {/* Decorative Gold Corner Lines */}
@@ -150,7 +197,7 @@ export const TopArchivists: React.FC = () => {
       <div className="absolute bottom-0 right-0 w-6 h-[2px] bg-primary shadow-[0_0_8px_#F8E71C]" />
       <div className="absolute bottom-0 right-0 w-[2px] h-6 bg-primary shadow-[0_0_8px_#F8E71C]" />
 
-      <div className="flex items-center justify-between mb-8 border-b border-primary/20 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-primary/20 pb-4">
         <div>
           <span className="text-[10px] uppercase font-esports tracking-[0.3em] text-primary font-black italic block mb-1">
             Archivist Records
@@ -159,27 +206,57 @@ export const TopArchivists: React.FC = () => {
             TOP ARCHIVISTS
           </h3>
         </div>
-        <div className="flex items-center gap-2 bg-primary/10 px-3 py-1 border border-primary/20 text-[9px] font-mono uppercase tracking-widest font-black text-primary">
-          <BookOpen size={12} />
-          PAGES EXORCISED
+
+        {/* Tab Switcher */}
+        <div className="flex bg-black/40 border border-white/5 p-1 rounded">
+          <button
+            onClick={() => setActiveTab('demo')}
+            className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-mono uppercase tracking-widest transition-all cursor-pointer ${
+              activeTab === 'demo'
+                ? 'bg-primary text-black font-black'
+                : 'text-white/50 hover:text-white'
+            }`}
+          >
+            <Sparkles size={11} />
+            Legendary Demo
+          </button>
+          <button
+            onClick={() => setActiveTab('live')}
+            className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-mono uppercase tracking-widest transition-all cursor-pointer ${
+              activeTab === 'live'
+                ? 'bg-primary text-black font-black'
+                : 'text-white/50 hover:text-white'
+            }`}
+          >
+            <Database size={11} />
+            Live Colony
+          </button>
         </div>
       </div>
 
-      {loading ? (
+      {loading && activeTab === 'live' ? (
         <div className="py-16 flex flex-col items-center justify-center gap-3">
           <Loader2 className="animate-spin text-primary" size={24} />
           <span className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant/60">
             Querying Archive Records...
           </span>
         </div>
-      ) : archivists.length === 0 ? (
-        <div className="py-12 text-center text-on-surface-variant/60 font-bold uppercase text-[11px] tracking-wider">
-          No records registered in this culling season.
+      ) : currentList.length === 0 ? (
+        <div className="py-12 text-center">
+          <p className="text-on-surface-variant/60 font-bold uppercase text-[11px] tracking-wider mb-4">
+            No live records registered in this culling season.
+          </p>
+          <button
+            onClick={() => setActiveTab('demo')}
+            className="px-4 py-1.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary uppercase font-mono text-[10px] tracking-widest transition-all"
+          >
+            View Legendary Demo Registers
+          </button>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
           <AnimatePresence mode="popLayout">
-            {archivists.map((row, idx) => (
+            {currentList.map((row, idx) => (
               <motion.div
                 key={row.userId}
                 layout
@@ -225,12 +302,19 @@ export const TopArchivists: React.FC = () => {
                   </div>
 
                   <div>
-                    <h4 className={`text-sm font-esports font-black italic uppercase tracking-wider ${
-                      idx === 0 ? 'text-primary digital-glow' : 'text-on-surface'
-                    }`}>
-                      {row.displayName}
-                    </h4>
-                    <p className="text-[9px] text-on-surface-variant/60 uppercase tracking-widest font-black">
+                    <div className="flex items-center gap-2">
+                      <h4 className={`text-sm font-esports font-black italic uppercase tracking-wider ${
+                        idx === 0 ? 'text-primary digital-glow' : 'text-on-surface'
+                      }`}>
+                        {row.displayName}
+                      </h4>
+                      {row.grade && (
+                        <span className="text-[7px] font-mono bg-white/5 border border-white/10 px-1 py-0.5 rounded text-white/50 uppercase tracking-wider">
+                          {row.grade}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[9px] text-on-surface-variant/60 uppercase tracking-widest font-black mt-0.5">
                       {row.tomesConquered} {row.tomesConquered === 1 ? 'Tome' : 'Tomes'} Conquered
                     </p>
                   </div>

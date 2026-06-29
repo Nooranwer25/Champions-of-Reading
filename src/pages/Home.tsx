@@ -22,6 +22,8 @@ import { WeeklyLeaderboard } from '../components/WeeklyLeaderboard';
 import { WorkspaceTools } from '../components/WorkspaceTools';
 import { RecentActivity } from '../components/RecentActivity';
 import { DailyMissions } from '../components/DailyMissions';
+import { DailyTomeGoal } from '../components/DailyTomeGoal';
+import { LibraryMap } from '../components/LibraryMap';
 
 const Home: React.FC = () => {
   const { user } = useAuth();
@@ -313,6 +315,9 @@ Only through consistent conquest can one expand their domain and sit upon the th
           {user && (
             <>
               <motion.div variants={itemVariants} className="w-full mb-16">
+                <DailyTomeGoal />
+              </motion.div>
+              <motion.div variants={itemVariants} className="w-full mb-16">
                 <DailyMissions />
               </motion.div>
               <motion.div variants={itemVariants} className="w-full mb-16">
@@ -327,6 +332,10 @@ Only through consistent conquest can one expand their domain and sit upon the th
 
           <motion.div variants={itemVariants} className="w-full mb-16">
             <TopArchivists />
+          </motion.div>
+
+          <motion.div variants={itemVariants} className="w-full mb-16">
+            <LibraryMap />
           </motion.div>
 
           <motion.div variants={itemVariants} className="w-full mb-16">

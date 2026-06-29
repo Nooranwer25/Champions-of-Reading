@@ -134,11 +134,11 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/oracle" element={
-          <AdminRoute>
+          <ProtectedRoute>
             <PageTransition>
               <Oracle />
             </PageTransition>
-          </AdminRoute>
+          </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

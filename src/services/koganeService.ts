@@ -146,3 +146,37 @@ export async function getBookRecommendations(
     return [];
   }
 }
+
+export async function getForgottenLoreSummary(bookTitle: string, author: string, synopsis: string): Promise<string> {
+  const prompt = `You are the Ancient Oracle of the Obsidian Library, a dark-fantasy archivist who deciphers the forbidden knowledge contained in mortal texts.
+  
+  Mortal Book Title: "${bookTitle}"
+  Mortal Author: "${author}"
+  User's Synopsis/Thoughts: "${synopsis || 'No thoughts provided yet.'}"
+  
+  Your task is to transcribe this book into a dark-fantasy "Forgotten Lore" artifact.
+  Deconstruct the book's core themes, plot, or intellectual value, and translate them into dark, occult, or eldritch fantasy terms.
+  
+  For example, if the book is "The Great Gatsby", you might describe it as:
+  "A grim chronicle of the West Egg colony, where an ambitious sorcerer conjures illusions of green light across the black water to summon a lost soul, only to be consumed by the shallow, blood-soaked aristocracy."
+  
+  If the book is a programming book like "Clean Code", you might describe it as:
+  "The Codex of Immaculate Runes. A grimoire instructing apprentices on how to purge dark curses and convoluted spells from their parchment. It teaches the sacred art of modular incantations so that the machine spirits do not rebel."
+  
+  Keep the style high-fantasy, grim, dark, gothic, and extremely evocative.
+  Use words like: Grimoire, Eldritch, Necromancy, Relic, Curse, Sanctum, Occult, Ritual, Sigil, Incantation, Whispers.
+  
+  MAXIMUM length is 80 words. Be concise and high-impact. Use markdown for dramatic highlights if necessary. Do not include any meta-commentary, introduction, or pleasantries. Start immediately with the lore text.`;
+
+  try {
+    const response = await getAI().models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt
+    });
+    return response.text || "The archives are too dark to decipher. The parchment has crumbled to dust.";
+  } catch (error) {
+    console.error("Error generating lore:", error);
+    return "Eldritch interference detected. The runes refuse to align at this moment.";
+  }
+}
+

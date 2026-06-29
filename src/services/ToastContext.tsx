@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, Trophy, Award, CheckCircle2, AlertTriangle, Info, BellRing, Share2 } from 'lucide-react';
 import { BADGES, getBadgeIcon } from '../constants/badges';
@@ -7,6 +7,8 @@ import { CelebrationConfetti } from '../components/CelebrationConfetti';
 import { useTheme } from './ThemeContext';
 import { useAuth } from './AuthContext';
 import { playAchievementSound } from './audioService';
+import { db } from './firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 export interface Toast {
   id: string;
@@ -69,6 +71,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {/* Watchers to automatically detect and celebrate newly earned achievements */}
       <BadgeWatcher onCelebrate={(cel) => setActiveCelebration(cel)} />
       <TrophyWatcher onCelebrate={(cel) => setActiveCelebration(cel)} />
+      <DailyGoalWatcher />
       
       <ToastContainer toasts={toasts} removeToast={removeToast} theme={theme} />
       
@@ -496,5 +499,160 @@ const ToastItem: React.FC<{
       </div>
     </motion.div>
   );
+};
+
+
+// Silent Watcher component to monitor today's page progress and trigger celebratory alerts at 50% & 100%
+const DailyGoalWatcher: React.FC = () => {
+  const { user, profile } = useAuth();
+  const { showToast } = useToast();
+  
+  const [todaySubmissionsPages, setTodaySubmissionsPages] = useState<number>(0);
+  const [manualProgress, setManualProgress] = useState<number>(0);
+
+  // Today's date string representation
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  const localProgressKey = `daily_tome_progress_${user?.uid || 'guest'}_${todayStr}`;
+  const localGoalKey = `daily_tome_goal_${user?.uid || 'guest'}`;
+
+  // 1. Sync manual progress from localStorage on interval (for immediate feedback)
+  useEffect(() => {
+    const updateManualProgress = () => {
+      const savedProgress = localStorage.getItem(localProgressKey);
+      if (savedProgress) {
+        const val = parseInt(savedProgress, 10);
+        if (!isNaN(val)) {
+          setManualProgress(val);
+          return;
+        }
+      }
+      setManualProgress(0);
+    };
+
+    updateManualProgress();
+    const interval = setInterval(updateManualProgress, 1000);
+    return () => clearInterval(interval);
+  }, [localProgressKey]);
+
+  // 2. Fetch today's auto-logged submissions in real-time from Firestore
+  useEffect(() => {
+    if (!user) {
+      setTodaySubmissionsPages(0);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'submissions'),
+      where('userId', '==', user.uid)
+    );
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      let pagesCount = 0;
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        let createdTime = 0;
+        
+        if (data.createdAt) {
+          if (typeof data.createdAt.toMillis === 'function') {
+            createdTime = data.createdAt.toMillis();
+          } else if (data.createdAt.seconds) {
+            createdTime = data.createdAt.seconds * 1000;
+          } else {
+            createdTime = new Date(data.createdAt).getTime();
+          }
+        }
+
+        // Only count submissions from today
+        if (createdTime >= startOfToday.getTime()) {
+          pagesCount += Number(data.pagesRead) || 0;
+        }
+      });
+      setTodaySubmissionsPages(pagesCount);
+    }, (err) => {
+      console.error('Error loading today submissions for daily goal watcher:', err);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // 3. Monitor combined progress and trigger celebration toasts
+  const prevPagesRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    // Determine daily target
+    let dailyGoal = 30;
+    if (profile?.dailyPageGoal) {
+      dailyGoal = profile.dailyPageGoal;
+    } else {
+      const savedGoal = localStorage.getItem(localGoalKey);
+      if (savedGoal) {
+        const val = parseInt(savedGoal, 10);
+        if (!isNaN(val) && val > 0) {
+          dailyGoal = val;
+        }
+      }
+    }
+
+    const totalPagesToday = todaySubmissionsPages + manualProgress;
+    const progressPercent = Math.min(100, Math.round((totalPagesToday / dailyGoal) * 100));
+
+    const key50 = `daily_goal_notified_50_${user?.uid || 'guest'}_${todayStr}`;
+    const key100 = `daily_goal_notified_100_${user?.uid || 'guest'}_${todayStr}`;
+
+    // On mount or first data load, capture baseline
+    if (prevPagesRef.current === null) {
+      prevPagesRef.current = totalPagesToday;
+      return;
+    }
+
+    // Only process if the total pages increased (active user logging progress)
+    if (totalPagesToday > prevPagesRef.current) {
+      if (progressPercent >= 50 && progressPercent < 100) {
+        if (localStorage.getItem(key50) !== 'true') {
+          localStorage.setItem(key50, 'true');
+          showToast({
+            title: '🌓 HALFWAY COGNITIVE EXTRACTION',
+            description: `You have reached 50% of your daily Tome Goal (${totalPagesToday}/${dailyGoal} pages)! Keep pushing to the apex!`,
+            type: 'milestone',
+            duration: 6000
+          });
+        }
+      } else if (progressPercent >= 100) {
+        if (localStorage.getItem(key100) !== 'true') {
+          localStorage.setItem(key100, 'true');
+          localStorage.setItem(key50, 'true'); // mark 50 as notified too
+          showToast({
+            title: '👑 IMPERIAL COGNITIVE APEX',
+            description: `100% Daily Tome Goal SHATTERED! Today's culling target (${totalPagesToday}/${dailyGoal} pages) is finalized. Your aura is boundless!`,
+            type: 'badge',
+            duration: 8000
+          });
+        }
+      }
+    }
+
+    // Smart resets: if progress is reset to lower values, clear the flags
+    if (totalPagesToday < (dailyGoal * 0.5)) {
+      if (localStorage.getItem(key50) === 'true') {
+        localStorage.removeItem(key50);
+      }
+    }
+    if (totalPagesToday < dailyGoal) {
+      if (localStorage.getItem(key100) === 'true') {
+        localStorage.removeItem(key100);
+      }
+    }
+
+    prevPagesRef.current = totalPagesToday;
+  }, [todaySubmissionsPages, manualProgress, profile?.dailyPageGoal, localGoalKey, todayStr, showToast, user?.uid]);
+
+  return null;
 };
 

@@ -19,6 +19,7 @@ export interface UserProfile {
   favoriteGenres?: string[];
   profileBannerUrl?: string;
   monthlyGoal?: number;
+  dailyPageGoal?: number;
   dailyStreak?: number;
   lastActivityDate?: string;
   trophies?: string[];
@@ -66,3 +67,23 @@ export interface GlobalStats {
   tomesConquered: number;
   pendingAdjudications: number;
 }
+
+export interface Duel {
+  id: string;
+  creatorId: string;
+  creatorName: string;
+  creatorPhoto?: string;
+  opponentId: string;
+  opponentName: string;
+  opponentPhoto?: string;
+  status: 'pending' | 'active' | 'completed' | 'declined';
+  milestone: number;
+  durationHours: number;
+  createdAt: any;
+  startedAt?: any;
+  expiresAt?: any;
+  creatorProgress: number;
+  opponentProgress: number;
+  winnerId?: string | null;
+}
+

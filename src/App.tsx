@@ -7,6 +7,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import { motion, AnimatePresence } from 'motion/react';
 import { playPageFlip } from './services/audioService';
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const Home = lazy(() => import('./pages/Home'));
 const Arena = lazy(() => import('./pages/Arena'));
@@ -161,6 +162,7 @@ function App() {
               </main>
               <Footer />
             </div>
+            <SpeedInsights />
           </ToastProvider>
         </AuthProvider>
       </ThemeProvider>

@@ -424,11 +424,11 @@ const ToastItem: React.FC<{
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 50, scale: 0.9 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.2 } }}
-      transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-      whileHover={{ scale: 1.02 }}
+      initial={{ opacity: 0, x: 100, y: 20, scale: 0.8 }}
+      animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.85, x: 50, transition: { duration: 0.2 } }}
+      transition={{ type: 'spring', stiffness: 500, damping: 20, bounce: 0.4 }}
+      whileHover={{ scale: 1.05 }}
       className={`relative w-full pointer-events-auto backdrop-blur-xl border p-4 rounded-2xl flex gap-3.5 overflow-hidden ${cardClass} ${
         theme === 'dark'
           ? 'bg-neutral-900/85 text-white'

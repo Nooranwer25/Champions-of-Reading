@@ -53,6 +53,7 @@ export interface Submission {
   impactScore?: number;
   judgeNotes?: string;
   pagesRead?: number;
+  readingDuration?: number; // in minutes
   createdAt: any;
 }
 

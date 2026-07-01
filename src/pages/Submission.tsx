@@ -40,6 +40,7 @@ const Submission: React.FC = () => {
     assessment: '',
     rating: 3,
     pagesRead: 250,
+    readingDuration: 60,
     coverImageUrl: ''
   });
 
@@ -75,6 +76,7 @@ const Submission: React.FC = () => {
             assessment: data.assessment || '',
             rating: data.rating || 3,
             pagesRead: data.pagesRead !== undefined ? data.pagesRead : 250,
+            readingDuration: data.readingDuration !== undefined ? data.readingDuration : 60,
             coverImageUrl: data.coverImageUrl || ''
           });
           if (data.coverImageUrl && data.coverImageUrl.startsWith('http')) {
@@ -247,8 +249,9 @@ const Submission: React.FC = () => {
         </div>
 
         <motion.div 
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          initial={{ opacity: 0, scale: 0.8, y: 50 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20, bounce: 0.4 }}
           className="text-center p-8 md:p-16 bg-surface-charcoal/80 backdrop-blur-xl border-2 border-primary/30 rounded-sm shadow-[0_0_50px_rgba(250,204,21,0.15)] relative max-w-2xl w-full z-10"
           style={{ clipPath: 'polygon(5% 0, 100% 0, 100% 95%, 95% 100%, 0 100%, 0 5%)' }}
         >
@@ -465,7 +468,7 @@ const Submission: React.FC = () => {
              </div>
 
              <div className="space-y-8">
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                  <div>
                    <label className="text-[10px] uppercase font-sans tracking-[0.2em] text-white/40 mb-3 block font-bold">
                      Category
@@ -494,6 +497,22 @@ const Submission: React.FC = () => {
                      onChange={e => setFormData({...formData, pagesRead: parseInt(e.target.value) || 0})}
                      className="w-full bg-on-surface/5 border border-on-surface/10 py-4 px-4 rounded-xl font-sans text-xs uppercase tracking-widest font-bold text-on-surface outline-none focus:border-primary transition-all"
                      placeholder="250"
+                   />
+                 </div>
+
+                 <div>
+                   <label className="text-[10px] uppercase font-sans tracking-[0.2em] text-white/40 mb-3 block font-bold">
+                     Duration (Mins)
+                   </label>
+                   <input 
+                     type="number"
+                     required
+                     min={1}
+                     max={1440}
+                     value={formData.readingDuration}
+                     onChange={e => setFormData({...formData, readingDuration: parseInt(e.target.value) || 0})}
+                     className="w-full bg-on-surface/5 border border-on-surface/10 py-4 px-4 rounded-xl font-sans text-xs uppercase tracking-widest font-bold text-on-surface outline-none focus:border-primary transition-all"
+                     placeholder="60"
                    />
                  </div>
                </div>

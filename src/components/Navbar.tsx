@@ -7,6 +7,7 @@ import { Settings, LogOut, User as UserIcon, Scroll, Sun, Moon } from 'lucide-re
 import { LeagueRules } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from '../services/ThemeContext';
+import { LoginModal } from './LoginModal';
 
 import Logo from './Logo';
 
@@ -15,6 +16,7 @@ const Navbar: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const [hasNewRule, setHasNewRule] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   useEffect(() => {
     const lastSeen = Number(localStorage.getItem('lastSeenRuleTime') || '0');
@@ -48,7 +50,7 @@ const Navbar: React.FC = () => {
     { name: 'Rankings', path: '/arena' },
     { name: 'Techniques', path: '/submit' },
     { name: 'Profile', path: '/profile' },
-    { name: 'Statutes', path: '/' },
+    { name: 'Statutes', path: '/rules' },
   ];
 
   return (
@@ -153,7 +155,7 @@ const Navbar: React.FC = () => {
           </>
         ) : (
           <button
-            onClick={handleLogin}
+            onClick={() => setShowLoginModal(true)}
             className="bg-primary text-black px-8 py-3 rounded-none font-esports font-black italic uppercase tracking-widest hover:bg-white hover:scale-105 hover:shadow-[0_0_30px_rgba(250,204,21,0.5)] transition-all active:scale-95 shadow-[0_0_20px_rgba(248,231,28,0.3)]"
             style={{ clipPath: 'polygon(10% 0, 100% 0, 90% 100%, 0% 100%)' }}
           >
@@ -161,6 +163,7 @@ const Navbar: React.FC = () => {
           </button>
         )}
       </div>
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </header>
   );
 };

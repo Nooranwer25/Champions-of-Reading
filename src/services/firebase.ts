@@ -1,29 +1,40 @@
 import { initializeApp, setLogLevel } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirestore, doc, getDocFromServer, collection, setLogLevel as setFirestoreLogLevel } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+import firebaseConfigFile from '../../firebase-applet-config.json';
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfigFile.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfigFile.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfigFile.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfigFile.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfigFile.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfigFile.appId,
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || (firebaseConfigFile as any).firestoreDatabaseId
+};
 
 const app = initializeApp(firebaseConfig);
 setLogLevel('silent');
 setFirestoreLogLevel('silent');
 // Use the firestoreDatabaseId from the config if it exists
-export const db = (firebaseConfig as any).firestoreDatabaseId 
-  ? initializeFirestore(app, { experimentalForceLongPolling: true }, (firebaseConfig as any).firestoreDatabaseId)
+export const db = firebaseConfig.firestoreDatabaseId 
+  ? initializeFirestore(app, { experimentalForceLongPolling: true }, firebaseConfig.firestoreDatabaseId)
   : initializeFirestore(app, { experimentalForceLongPolling: true });
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Google Workspace Scopes
-googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
-googleProvider.addScope('https://www.googleapis.com/auth/gmail.send');
-googleProvider.addScope('https://www.googleapis.com/auth/gmail.readonly');
-googleProvider.addScope('https://www.googleapis.com/auth/calendar');
-googleProvider.addScope('https://www.googleapis.com/auth/tasks');
-googleProvider.addScope('https://www.googleapis.com/auth/forms.body');
-googleProvider.addScope('https://www.googleapis.com/auth/forms.responses.readonly');
-googleProvider.addScope('https://www.googleapis.com/auth/chat.spaces');
-googleProvider.addScope('https://www.googleapis.com/auth/chat.messages');
-googleProvider.addScope('https://www.googleapis.com/auth/keep');
+// Google Workspace Scopes - removed for seamless login
+// We can request these later if needed, but for now they block user adoption.
+// googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
+// googleProvider.addScope('https://www.googleapis.com/auth/gmail.send');
+// googleProvider.addScope('https://www.googleapis.com/auth/gmail.readonly');
+// googleProvider.addScope('https://www.googleapis.com/auth/calendar');
+// googleProvider.addScope('https://www.googleapis.com/auth/tasks');
+// googleProvider.addScope('https://www.googleapis.com/auth/forms.body');
+// googleProvider.addScope('https://www.googleapis.com/auth/forms.responses.readonly');
+// googleProvider.addScope('https://www.googleapis.com/auth/chat.spaces');
+// googleProvider.addScope('https://www.googleapis.com/auth/chat.messages');
+// googleProvider.addScope('https://www.googleapis.com/auth/keep');
 
 // Cache the access token in memory
 let cachedAccessToken: string | null = null;
@@ -49,6 +60,12 @@ export const signInWithGoogle = async () => {
 
 export const getAccessToken = () => {
   return cachedAccessToken;
+};
+
+export const signInAsGuest = async () => {
+  const { signInAnonymously } = await import('firebase/auth');
+  const result = await signInAnonymously(auth);
+  return result.user;
 };
 
 export const signInWithTestAccount = async (email: string, pass: string) => {

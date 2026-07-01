@@ -14,6 +14,7 @@ const Arena = lazy(() => import('./pages/Arena'));
 const Submission = lazy(() => import('./pages/Submission'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Oracle = lazy(() => import('./pages/Oracle'));
+const Rules = lazy(() => import('./pages/Rules'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-[#050505] relative overflow-hidden">
@@ -140,6 +141,11 @@ const AppRoutes = () => {
               <Oracle />
             </PageTransition>
           </ProtectedRoute>
+        } />
+        <Route path="/rules" element={
+          <PageTransition>
+            <Rules />
+          </PageTransition>
         } />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

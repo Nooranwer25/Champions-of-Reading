@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { useTheme } from '../services/ThemeContext';
-import { signInWithGoogle, signInWithTestAccount, db } from '../services/firebase';
+import { signInWithGoogle, signInWithTestAccount, signInAsGuest, db } from '../services/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { BookOpen, Trophy, Scroll, Sword, X, Zap, ShieldCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { LoginModal } from '../components/LoginModal';
 import { LeagueRules } from '../types';
 import Logo from '../components/Logo';
 import SeasonCountdown from '../components/SeasonCountdown';
@@ -19,7 +20,6 @@ import { BookRecommendations } from '../components/BookRecommendations';
 import { TopArchivists } from '../components/TopArchivists';
 import { GrandLeaderboard } from '../components/GrandLeaderboard';
 import { WeeklyLeaderboard } from '../components/WeeklyLeaderboard';
-import { WorkspaceTools } from '../components/WorkspaceTools';
 import { RecentActivity } from '../components/RecentActivity';
 import { DailyMissions } from '../components/DailyMissions';
 import { DailyTomeGoal } from '../components/DailyTomeGoal';
@@ -28,7 +28,6 @@ import { LibraryMap } from '../components/LibraryMap';
 const Home: React.FC = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
-  const [leagueRules, setLeagueRules] = useState<string>('');
   const [hasNewRule, setHasNewRule] = useState(false);
   const [koganeSpeech, setKoganeSpeech] = useState("JUDGMENT!");
   const [lastSeenRuleTime, setLastSeenRuleTime] = useState<number>(() => {
@@ -47,26 +46,10 @@ const Home: React.FC = () => {
     const unsubscribe = onSnapshot(doc(db, 'config', 'league_rules'), (doc) => {
       if (doc.exists()) {
         const data = doc.data() as LeagueRules;
-        setLeagueRules(data.content);
-        
         const updateTime = data.lastUpdated?.toMillis() || 0;
         if (updateTime > lastSeenRuleTime) {
           setHasNewRule(true);
         }
-      } else {
-        setLeagueRules(`
-### I. The Commitment
-Every logged tome must be read in its entirety. Cursed energy is only generated through true comprehension.
-
-### II. The Execution
-A simple log is insufficient. Champions must demonstrate their mastery. Judgment will be severe.
-
-### III. The Points
-Points are awarded by Kogane based on the cursed energy manifest in the reflection.
-
-### IV. The Domain
-Only through consistent conquest can one expand their domain and sit upon the throne of the Elite.
-        `);
       }
     }, (error) => {
       // Ignore
@@ -86,6 +69,7 @@ Only through consistent conquest can one expand their domain and sit upon the th
   const [testEmail, setTestEmail] = useState('');
   const [testPass, setTestPass] = useState('');
   const [showTestForm, setShowTestForm] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const handleTestLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,16 +79,6 @@ Only through consistent conquest can one expand their domain and sit upon the th
     } catch (error) {
       // Ignore
     }
-  };
-
-  const [showRules, setShowRules] = useState(false);
-
-  const handleOpenRules = () => {
-    setShowRules(true);
-    setHasNewRule(false);
-    const now = Date.now();
-    setLastSeenRuleTime(now);
-    localStorage.setItem('lastSeenRuleTime', now.toString());
   };
 
   const containerVariants = {
@@ -127,72 +101,6 @@ Only through consistent conquest can one expand their domain and sit upon the th
       <div className="mesh-gradient-1 !bg-secondary/20"></div>
       <div className="mesh-gradient-2 !bg-primary/10"></div>
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#facc15 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
-
-      {/* Rules Modal */}
-      <AnimatePresence>
-        {showRules && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md"
-            onClick={() => setShowRules(false)}
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20, rotate: -1 }}
-              animate={{ scale: 1, y: 0, rotate: 0 }}
-              exit={{ scale: 0.9, y: 20, rotate: 1 }}
-              className="cursed-contract-bg border-4 border-primary/20 p-12 md:p-20 max-w-2xl w-full relative overflow-y-auto max-h-[85vh] hide-scrollbar shadow-[0_0_100px_rgba(248,231,28,0.1)]"
-              style={{ clipPath: 'polygon(2% 0, 98% 0, 100% 4%, 100% 96%, 98% 100%, 2% 100%, 0 96%, 0 4%)' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
-                 <ShieldCheck size={300} className="text-primary" strokeWidth={0.5} />
-              </div>
-
-              <button 
-                onClick={() => setShowRules(false)}
-                className="absolute top-8 right-8 text-on-surface-variant hover:text-primary transition-all hover:rotate-90 p-2"
-              >
-                <X size={28} />
-              </button>
-              
-              <div className="flex flex-col items-center text-center mb-16">
-                <div className="text-[10px] uppercase font-sans tracking-[0.6em] text-primary mb-6 font-black italic digital-glow">The Culling Statutes</div>
-                <h2 className="text-6xl font-esports italic text-on-surface mb-4 font-headline uppercase tracking-tighter">The Binding Vow</h2>
-                <div className="w-48 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-              </div>
-              
-              <div className={`prose ${theme === 'dark' ? 'prose-invert' : ''} prose-lg max-w-none text-on-surface-variant/80 font-sans font-medium leading-relaxed italic prose-h3:text-primary prose-h3:font-esports prose-h3:uppercase prose-h3:tracking-widest prose-h3:text-sm prose-h3:mb-2 prose-h3:mt-8 first:prose-h3:mt-0`}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {leagueRules}
-                </ReactMarkdown>
-              </div>
-
-              <div className="mt-20 pt-10 border-t border-primary/10 flex flex-col items-center gap-8">
-                 <div className="flex items-center gap-6 opacity-30">
-                    <div className="w-12 h-[2px] bg-primary/20" />
-                    <Zap className="text-primary" size={20} />
-                    <div className="w-12 h-[2px] bg-primary/20" />
-                 </div>
-                 
-                 <button 
-                  onClick={() => setShowRules(false)}
-                  className="group relative px-12 py-4 bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-all overflow-hidden"
-                  style={{ clipPath: 'polygon(10% 0, 100% 0, 90% 100%, 0% 100%)' }}
-                 >
-                   <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                   <span className="relative text-xs uppercase tracking-[0.5em] text-primary font-black italic">Vow Observed</span>
-                 </button>
-
-                 <div className="text-[8px] font-mono text-primary/20 uppercase tracking-[0.2em] font-bold">
-                   Non-compliance results in immediate exile from the colony.
-                 </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex flex-col items-center justify-center pt-20 px-6">
@@ -245,13 +153,13 @@ Only through consistent conquest can one expand their domain and sit upon the th
               <div className="flex flex-col items-center gap-4">
                 <button 
                   id="tour-login-btn"
-                  onClick={handleLogin}
+                  onClick={() => setShowLoginModal(true)}
                   className="bg-primary hover:bg-white hover:text-primary text-surface px-12 py-6 text-2xl font-esports font-black uppercase tracking-widest transition-all duration-300 transform hover:scale-105 shadow-[0_0_30px_rgba(250,204,21,0.3)]"
                   style={{ clipPath: 'polygon(10% 0, 100% 0, 90% 100%, 0% 100%)' }}
                 >
-                  ENTER THE COLONY
+                  JOIN THE TOURNAMENT
                 </button>
-                
+
                 {showTestForm ? (
                    <form onSubmit={handleTestLogin} className="flex flex-col gap-2 p-4 bg-surface-charcoal border border-primary/20 rounded w-full">
                      <input type="email" placeholder="Email (test)" value={testEmail} onChange={e => setTestEmail(e.target.value)} className="bg-transparent border border-primary/20 p-2 text-xs text-on-surface" />
@@ -293,20 +201,22 @@ Only through consistent conquest can one expand their domain and sit upon the th
             <SeasonCountdown className="scale-90 md:scale-100" />
           </motion.div>
 
-          <motion.button
-            variants={itemVariants}
-            onClick={handleOpenRules}
-            className="text-xl font-esports font-bold uppercase tracking-[0.4em] text-white/40 hover:text-primary transition-all flex items-center gap-4 group mb-12"
-          >
-            <Scroll className="group-hover:rotate-12 transition-transform" />
-            CONSULT THE BINDING VOWS
-            {hasNewRule && (
-              <div className="relative flex items-center justify-center">
-                <span className="absolute w-6 h-6 bg-primary/30 rounded-full animate-ping"></span>
-                <span className="relative w-3 h-3 bg-primary rounded-full shadow-[0_0_15px_#facc15] border border-white/20"></span>
-              </div>
-            )}
-          </motion.button>
+          <motion.div variants={itemVariants}>
+            <Link
+              to="/rules"
+              onClick={() => setHasNewRule(false)}
+              className="text-xl font-esports font-bold uppercase tracking-[0.4em] text-white/40 hover:text-primary transition-all flex items-center gap-4 group mb-12 inline-flex"
+            >
+              <Scroll className="group-hover:rotate-12 transition-transform" />
+              CONSULT THE BINDING VOWS & TUTORIAL
+              {hasNewRule && (
+                <div className="relative flex items-center justify-center">
+                  <span className="absolute w-6 h-6 bg-primary/30 rounded-full animate-ping"></span>
+                  <span className="relative w-3 h-3 bg-primary rounded-full shadow-[0_0_15px_#facc15] border border-white/20"></span>
+                </div>
+              )}
+            </Link>
+          </motion.div>
 
           <motion.div variants={itemVariants} className="w-full mb-16">
             <GrandLeaderboard />
@@ -319,9 +229,6 @@ Only through consistent conquest can one expand their domain and sit upon the th
               </motion.div>
               <motion.div variants={itemVariants} className="w-full mb-16">
                 <DailyMissions />
-              </motion.div>
-              <motion.div variants={itemVariants} className="w-full mb-16">
-                <WorkspaceTools />
               </motion.div>
             </>
           )}
@@ -427,6 +334,8 @@ Only through consistent conquest can one expand their domain and sit upon the th
           ))}
         </div>
       </section>
+      
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </div>
   );
 };

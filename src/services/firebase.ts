@@ -4,22 +4,19 @@ import { initializeFirestore, doc, getDocFromServer, collection, setLogLevel as 
 import firebaseConfigFile from '../../firebase-applet-config.json';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfigFile.apiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfigFile.authDomain,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfigFile.projectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfigFile.storageBucket,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfigFile.messagingSenderId,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfigFile.appId,
-  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || (firebaseConfigFile as any).firestoreDatabaseId
+  apiKey: "AIzaSyCANFO6qzld40OwtHZhHNRxIPkx9dkzjWw",
+  authDomain: "gen-lang-client-0369459839.firebaseapp.com",
+  projectId: "gen-lang-client-0369459839",
+  storageBucket: "gen-lang-client-0369459839.firebasestorage.app",
+  messagingSenderId: "483208860270",
+  appId: "1:483208860270:web:e4b16839b67a9acd7d0c7f"
 };
 
 const app = initializeApp(firebaseConfig);
 setLogLevel('silent');
 setFirestoreLogLevel('silent');
 // Use the firestoreDatabaseId from the config if it exists
-export const db = firebaseConfig.firestoreDatabaseId 
-  ? initializeFirestore(app, { experimentalForceLongPolling: true }, firebaseConfig.firestoreDatabaseId)
-  : initializeFirestore(app, { experimentalForceLongPolling: true });
+export const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
@@ -41,7 +38,8 @@ let cachedAccessToken: string | null = null;
 
 export const signInWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
+    const { browserPopupRedirectResolver } = await import('firebase/auth');
+    const result = await signInWithPopup(auth, googleProvider, browserPopupRedirectResolver);
     
     // Save access token
     const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -53,6 +51,9 @@ export const signInWithGoogle = async () => {
   } catch (error: any) {
     if (error?.code === 'auth/popup-closed-by-user' || error?.code === 'auth/cancelled-popup-request') {
       return null;
+    }
+    if (error?.code === 'auth/internal-error' || error?.message?.includes('internal-error')) {
+      throw new Error('Google Sign-In failed due to environment restrictions. Please open the application in a new tab (click the arrow icon in the top right) to sign in.');
     }
     throw error;
   }

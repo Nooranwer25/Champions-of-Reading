@@ -17,8 +17,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     try {
       await signInWithGoogle();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Google login failed", error);
+      alert(error.message || 'Authentication failed. Please try opening in a new tab.');
     } finally {
       setIsGoogleLoading(false);
     }

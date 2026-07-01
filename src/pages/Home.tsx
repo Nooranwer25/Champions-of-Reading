@@ -61,8 +61,8 @@ const Home: React.FC = () => {
   const handleLogin = async () => {
     try {
       await signInWithGoogle();
-    } catch (error) {
-      // Ignore
+    } catch (error: any) {
+      if (error?.message) alert(error.message);
     }
   };
 
